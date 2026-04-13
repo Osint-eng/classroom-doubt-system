@@ -1,8 +1,13 @@
+# config/mongodb.py
+
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# 🔥 Replace this with your MongoDB Atlas URL
+MONGO_URL = "mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority"
 
-client = AsyncIOMotorClient(os.getenv("MONGO_URI"))
-db = client["classroom_db"]
+# ✅ Create client
+client = AsyncIOMotorClient(MONGO_URL)
+
+# ✅ Create database
+db = client["classroom_db"]  # you can name anything
