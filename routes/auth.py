@@ -6,11 +6,12 @@ from schemas.user_schema import UserCreate, UserLogin
 
 router = APIRouter()
 
+# ✅ REGISTER
 @router.post("/register")
 async def register(user: UserCreate):
     existing = await db.users.find_one({"email": user.email})
     if existing:
-        raise HTTPException(400, "User already exists")
+        raise HTTPException(status_code=400, detail="User already exists")
 
     user_dict = user.dict()
     user_dict["password"] = hash_password(user.password)
@@ -22,12 +23,13 @@ async def register(user: UserCreate):
     return {"token": token}
 
 
+# ✅ LOGIN
 @router.post("/login")
 async def login(user: UserLogin):
     db_user = await db.users.find_one({"email": user.email})
 
     if not db_user or not verify_password(user.password, db_user["password"]):
-        raise HTTPException(401, "Invalid credentials")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_token({"id": str(db_user["_id"])})
     return {"token": token}
