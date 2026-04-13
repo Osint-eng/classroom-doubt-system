@@ -7,3 +7,6 @@ app.include_router(auth.router, prefix="/api/auth")
 app.include_router(question.router, prefix="/api/questions")
 app.include_router(answer.router, prefix="/api/answers")
 app.include_router(voting.router, prefix="/api/votes")
+@app.get("/")
+def home():
+    return {"message": "API is running 🚀"}
