@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 pymongo==4.4.1
 gunicorn==21.2.0  # Important for production
 Werkzeug==2.3.7
+gunicorn==21.2.0
