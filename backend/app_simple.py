@@ -171,6 +171,28 @@ def create_question():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({'message': str(e)}), 500
-
+@app.route('/')
+def home():
+    return jsonify({
+        'message': 'Classroom Doubt System API',
+        'endpoints': {
+            'register': '/api/auth/register',
+            'login': '/api/auth/login',
+            'questions': '/api/questions',
+            'create_question': '/api/questions (POST)'
+        }
+    }), 200
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
+@app.route('/')
+def home():
+    return jsonify({
+        'message': 'Classroom Doubt System API',
+        'endpoints': {
+            'register': '/api/auth/register',
+            'login': '/api/auth/login',
+            'questions': '/api/questions',
+            'create_question': '/api/questions (POST)'
+        }
+    }), 200
