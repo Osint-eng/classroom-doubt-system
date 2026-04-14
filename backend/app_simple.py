@@ -1,3 +1,4 @@
+import sys
 from flask import Flask, request, jsonify
 from flask_pymongo import PyMongo
 from flask_cors import CORS
@@ -8,14 +9,40 @@ from bson import ObjectId
 import os
 from dotenv import load_dotenv
 
+# Force print to flush immediately
+sys.stdout.reconfigure(line_buffering=True)
+
 load_dotenv()
 
 app = Flask(__name__)
-app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/classroom_doubt')
-app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'secretkey')
-CORS(app, origins=['https://classroom-dought-system.netlify.app', 'http://localhost:3000'])
 
-mongo = PyMongo(app)
+# Get MongoDB URI from environment
+mongo_uri = os.getenv('MONGO_URI')
+print(f"=== DEBUG: MONGO_URI = {mongo_uri[:50] if mongo_uri else 'NOT SET'}...", flush=True)
+
+if not mongo_uri:
+    print("=== ERROR: MONGO_URI environment variable is not set! ===", flush=True)
+    mongo_uri = 'mongodb://localhost:27017/classroom_doubt'
+
+app.config['MONGO_URI'] = mongo_uri
+app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'secretkey')
+print(f"=== DEBUG: JWT_SECRET = {app.config['SECRET_KEY'][:10]}...", flush=True)
+
+# Configure CORS
+CORS(app, origins=[
+    'https://classroom-dought-system.netlify.app',
+    'http://localhost:3000'
+])
+
+# Connect to MongoDB
+try:
+    mongo = PyMongo(app)
+    # Test connection
+    mongo.db.command('ping')
+    print("=== ✅ MongoDB connected successfully! ===", flush=True)
+except Exception as e:
+    print(f"=== ❌ MongoDB connection error: {e} ===", flush=True)
+    mongo = None
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -23,18 +50,29 @@ def health():
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
+    print("=== Register endpoint called ===", flush=True)
+    
+    if mongo is None:
+        print("=== ERROR: mongo is None! ===", flush=True)
+        return jsonify({'message': 'Database connection error'}), 500
+    
     try:
         data = request.get_json()
+        print(f"=== Register data: {data}", flush=True)
+        
         name = data.get('name')
         email = data.get('email')
         password = data.get('password')
         role = data.get('role', 'student')
         
+        # Check if user exists
         if mongo.db.users.find_one({'email': email}):
             return jsonify({'message': 'User already exists'}), 400
         
+        # Hash password
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         
+        # Create user
         user = {
             'name': name,
             'email': email,
@@ -46,10 +84,13 @@ def register():
         
         result = mongo.db.users.insert_one(user)
         
+        # Generate token
         token = jwt.encode({
             'user_id': str(result.inserted_id),
             'exp': datetime.utcnow() + timedelta(hours=24)
         }, app.config['SECRET_KEY'], algorithm='HS256')
+        
+        print(f"=== User created successfully: {email}", flush=True)
         
         return jsonify({
             'message': 'User created successfully',
@@ -63,10 +104,14 @@ def register():
             }
         }), 201
     except Exception as e:
+        print(f"=== Register error: {e} ===", flush=True)
         return jsonify({'message': str(e)}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
+    if mongo is None:
+        return jsonify({'message': 'Database connection error'}), 500
+    
     try:
         data = request.get_json()
         email = data.get('email')
@@ -95,10 +140,14 @@ def login():
         else:
             return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
+        print(f"=== Login error: {e} ===", flush=True)
         return jsonify({'message': str(e)}), 500
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
+    if mongo is None:
+        return jsonify([]), 200
+    
     try:
         questions = list(mongo.db.questions.find().sort('createdAt', -1).limit(20))
         for q in questions:
