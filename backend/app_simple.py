@@ -13,15 +13,25 @@ load_dotenv()
 app = Flask(__name__)
 app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/classroom_doubt')
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'secretkey')
-CORS(app)
+CORS(app, origins=['https://classroom-dought-system.netlify.app', 'http://localhost:3000'])
 
 mongo = PyMongo(app)
 
-# Helper function to convert ObjectId to string
+# Helper function to serialize ObjectId
 def serialize_doc(doc):
-    if doc:
+    if doc and '_id' in doc:
         doc['_id'] = str(doc['_id'])
     return doc
+
+# Root endpoint
+@app.route('/')
+def home():
+    return jsonify({'message': 'API is running 🚀'}), 200
+
+# Health check
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'OK', 'message': 'Server is running'}), 200
 
 # Register endpoint
 @app.route('/api/auth/register', methods=['POST'])
@@ -69,7 +79,6 @@ def register():
                 'reputation': 0
             }
         }), 201
-        
     except Exception as e:
         print(f"Error in register: {e}")
         return jsonify({'message': str(e)}), 500
@@ -105,7 +114,6 @@ def login():
             }), 200
         else:
             return jsonify({'message': 'Invalid credentials'}), 401
-            
     except Exception as e:
         print(f"Error in login: {e}")
         return jsonify({'message': str(e)}), 500
@@ -116,7 +124,7 @@ def get_me():
     try:
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
         if not token:
-            return jsonify({'message': 'No token'}), 401
+            return jsonify({'message': 'No token provided'}), 401
         
         data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         user = mongo.db.users.find_one({'_id': ObjectId(data['user_id'])})
@@ -131,27 +139,34 @@ def get_me():
             'role': user['role'],
             'reputation': user.get('reputation', 0)
         }), 200
-        
+    except jwt.ExpiredSignatureError:
+        return jsonify({'message': 'Token expired'}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({'message': 'Invalid token'}), 401
     except Exception as e:
-        return jsonify({'message': str(e)}), 401
+        return jsonify({'message': str(e)}), 500
 
-# Get questions endpoint
+# Get questions
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
-    questions = list(mongo.db.questions.find().sort('createdAt', -1).limit(20))
-    for q in questions:
-        q['_id'] = str(q['_id'])
-        if 'author' in q:
-            author = mongo.db.users.find_one({'_id': q['author']})
-            q['author_info'] = {'name': author['name'] if author else 'Unknown'}
-            q['author'] = str(q['author'])
-    return jsonify(questions), 200
+    try:
+        questions = list(mongo.db.questions.find().sort('createdAt', -1).limit(20))
+        for q in questions:
+            q['_id'] = str(q['_id'])
+            if 'author' in q:
+                q['author'] = str(q['author'])
+        return jsonify(questions), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
 
-# Create question endpoint
+# Create question
 @app.route('/api/questions', methods=['POST'])
 def create_question():
     try:
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token:
+            return jsonify({'message': 'Authentication required'}), 401
+        
         data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         
         body = request.get_json()
@@ -167,32 +182,8 @@ def create_question():
         
         result = mongo.db.questions.insert_one(question)
         return jsonify({'_id': str(result.inserted_id), **body}), 201
-        
     except Exception as e:
-        print(f"Error: {e}")
         return jsonify({'message': str(e)}), 500
-@app.route('/')
-def home():
-    return jsonify({
-        'message': 'Classroom Doubt System API',
-        'endpoints': {
-            'register': '/api/auth/register',
-            'login': '/api/auth/login',
-            'questions': '/api/questions',
-            'create_question': '/api/questions (POST)'
-        }
-    }), 200
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
 
-@app.route('/')
-def home():
-    return jsonify({
-        'message': 'Classroom Doubt System API',
-        'endpoints': {
-            'register': '/api/auth/register',
-            'login': '/api/auth/login',
-            'questions': '/api/questions',
-            'create_question': '/api/questions (POST)'
-        }
-    }), 200
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
