@@ -1,0 +1,31 @@
+services:
+  # Backend API Service
+  - type: web
+    name: classroom-doubt-backend
+    runtime: python
+    repo: https://github.com/Osint-eng/classroom-doubt-system
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:app
+    envVars:
+      - key: MONGO_URI
+        fromDatabase:
+          name: classroom-doubt-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000
+
+  # Frontend Static Site
+  - type: static
+    name: classroom-doubt-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://classroom-doubt-backend.onrender.com
+
+databases:
+  - name: classroom-doubt-db
+    plan: free
