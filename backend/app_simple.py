@@ -28,11 +28,11 @@ app.config['MONGO_URI'] = mongo_uri
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'secretkey')
 print(f"=== DEBUG: JWT_SECRET = {app.config['SECRET_KEY'][:10]}...", flush=True)
 
-# Configure CORS
+# Configure CORS - Allow Netlify frontend
 CORS(app, origins=[
     'https://classroom-dought-system.netlify.app',
     'http://localhost:3000'
-])
+], supports_credentials=True)
 
 # Connect to MongoDB
 try:
