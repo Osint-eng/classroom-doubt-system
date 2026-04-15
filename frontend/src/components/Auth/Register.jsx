@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -16,8 +17,20 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    console.log("=== REGISTER DEBUG ===");
+    console.log("Form data being sent:", formData);
+    
     const result = await register(formData);
-    if (result.success) navigate('/');
+    
+    console.log("Register result:", result);
+    
+    if (result.success) {
+      console.log("Registration successful, navigating to home");
+      navigate('/');
+    } else {
+      console.log("Registration failed:", result.error);
+    }
     setLoading(false);
   };
 
