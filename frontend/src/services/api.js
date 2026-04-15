@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Hardcoded URL for production
+const API_URL = 'https://classroom-doubt-system-8.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -16,7 +17,7 @@ api.interceptors.request.use((config) => {
 });
 
 export const register = (userData) => api.post('/auth/register', userData);
-export const login = (userData) => api.post('/auth/login', userData);
+export const login = (credentials) => api.post('/auth/login', credentials);
 export const getCurrentUser = () => api.get('/auth/me');
 export const getQuestions = (params) => api.get('/questions', { params });
 export const getQuestionById = (id) => api.get(`/questions/${id}`);
