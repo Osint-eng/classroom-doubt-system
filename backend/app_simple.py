@@ -31,9 +31,9 @@ print(f"=== DEBUG: JWT_SECRET = {app.config['SECRET_KEY'][:10]}...", flush=True)
 # Configure CORS - Allow Netlify frontend
 CORS(app, origins=[
     'https://classroom-dought-system.netlify.app',
+    'https://classroom-doubt-system.netlify.app',
     'http://localhost:3000'
 ], supports_credentials=True)
-
 # Connect to MongoDB
 try:
     mongo = PyMongo(app)
