@@ -17,16 +17,18 @@ const QuestionDetail = () => {
   }, [id]);
 
   const fetchQuestion = async () => {
-    try {
-      const res = await getQuestionById(id);
-      setQuestion(res.data.question);
-      setAnswers(res.data.answers || []);
-    } catch (error) {
-      toast.error('Failed to load question');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const res = await getQuestionById(id);
+    console.log("API Response:", res.data); // Debug: see what's returned
+    setQuestion(res.data);  // Changed from res.data.question
+    setAnswers(res.data.answers || []);
+  } catch (error) {
+    console.error("Error:", error);
+    toast.error('Failed to load question');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddAnswer = async (e) => {
     e.preventDefault();
