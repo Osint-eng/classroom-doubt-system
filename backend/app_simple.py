@@ -229,3 +229,29 @@ def home():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+@app.route('/api/answers/<question_id>', methods=['POST', 'OPTIONS'])
+def add_answer(question_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        return jsonify({'message': 'Auth required'}), 401
+    
+    try:
+        data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        body = request.json
+        
+        answer = {
+            'questionId': ObjectId(question_id),
+            'author': ObjectId(data['user_id']),
+            'content': body.get('content'),
+            'votes': 0,
+            'createdAt': datetime.utcnow()
+        }
+        
+        result = mongo.db.answers.insert_one(answer)
+        return jsonify({'_id': str(result.inserted_id), 'message': 'Answer posted'}), 201
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
