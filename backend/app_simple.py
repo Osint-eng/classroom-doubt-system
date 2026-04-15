@@ -40,12 +40,16 @@ def serialize_doc(doc):
         doc['questionId'] = str(doc['questionId'])
     return doc
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health():
+    if request.method == 'OPTIONS':
+        return '', 200
     return jsonify({'status': 'OK', 'message': 'Server is running'}), 200
 
-@app.route('/api/auth/register', methods=['POST'])
+@app.route('/api/auth/register', methods=['POST', 'OPTIONS'])
 def register():
+    if request.method == 'OPTIONS':
+        return '', 200
     if not mongo:
         return jsonify({'message': 'Database error'}), 500
     try:
@@ -68,8 +72,10 @@ def register():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@app.route('/api/auth/login', methods=['POST'])
+@app.route('/api/auth/login', methods=['POST', 'OPTIONS'])
 def login():
+    if request.method == 'OPTIONS':
+        return '', 200
     if not mongo:
         return jsonify({'message': 'Database error'}), 500
     try:
@@ -82,13 +88,30 @@ def login():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@app.route('/api/questions', methods=['GET'])
+@app.route('/api/auth/me', methods=['GET', 'OPTIONS'])
+def get_me():
+    if request.method == 'OPTIONS':
+        return '', 200
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        return jsonify({'message': 'No token'}), 401
+    try:
+        data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        user = mongo.db.users.find_one({'_id': ObjectId(data['user_id'])})
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        return jsonify({'id': str(user['_id']), 'name': user['name'], 'email': user['email'], 'role': user['role'], 'reputation': user.get('reputation', 0)}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 401
+
+@app.route('/api/questions', methods=['GET', 'OPTIONS'])
 def get_questions():
+    if request.method == 'OPTIONS':
+        return '', 200
     if not mongo:
         return jsonify([]), 200
     try:
         questions = list(mongo.db.questions.find().sort('createdAt', -1).limit(20))
-        # Serialize each question
         for q in questions:
             q['_id'] = str(q['_id'])
             if 'author' in q and isinstance(q['author'], ObjectId):
@@ -98,8 +121,10 @@ def get_questions():
         print(f"Error in get_questions: {e}")
         return jsonify({'message': str(e)}), 500
 
-@app.route('/api/questions', methods=['POST'])
+@app.route('/api/questions', methods=['POST', 'OPTIONS'])
 def create_question():
+    if request.method == 'OPTIONS':
+        return '', 200
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
     if not token:
         return jsonify({'message': 'Auth required'}), 401
@@ -120,8 +145,10 @@ def create_question():
     except Exception as e:
         return jsonify({'message': str(e)}), 401
 
-@app.route('/api/questions/<question_id>', methods=['GET'])
+@app.route('/api/questions/<question_id>', methods=['GET', 'OPTIONS'])
 def get_question(question_id):
+    if request.method == 'OPTIONS':
+        return '', 200
     if not mongo:
         return jsonify({'message': 'Database error'}), 500
     try:
@@ -132,6 +159,69 @@ def get_question(question_id):
         return jsonify(question), 200
     except Exception as e:
         return jsonify({'message': str(e)}), 500
+
+# ANSWER ROUTES
+@app.route('/api/answers/<question_id>', methods=['POST', 'OPTIONS'])
+def add_answer(question_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        return jsonify({'message': 'Authentication required'}), 401
+    
+    try:
+        data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        user_id = data['user_id']
+    except Exception as e:
+        return jsonify({'message': f'Invalid token: {str(e)}'}), 401
+    
+    if not mongo:
+        return jsonify({'message': 'Database error'}), 500
+    
+    try:
+        body = request.json
+        content = body.get('content')
+        
+        if not content:
+            return jsonify({'message': 'Content is required'}), 400
+        
+        # Check if question exists
+        question = mongo.db.questions.find_one({'_id': ObjectId(question_id)})
+        if not question:
+            return jsonify({'message': 'Question not found'}), 404
+        
+        answer = {
+            'questionId': ObjectId(question_id),
+            'author': ObjectId(user_id),
+            'content': content,
+            'votes': 0,
+            'voters': [],
+            'createdAt': datetime.utcnow()
+        }
+        
+        result = mongo.db.answers.insert_one(answer)
+        
+        # Get user info for response
+        user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
+        
+        return jsonify({
+            '_id': str(result.inserted_id),
+            'content': content,
+            'author': str(user_id),
+            'author_info': {'name': user['name'] if user else 'Unknown'},
+            'votes': 0,
+            'createdAt': datetime.utcnow().isoformat()
+        }), 201
+    except Exception as e:
+        print(f"Error adding answer: {e}")
+        return jsonify({'message': str(e)}), 500
+
+@app.route('/api/answers/<answer_id>/vote', methods=['POST', 'OPTIONS'])
+def vote_answer(answer_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    return jsonify({'message': 'Vote endpoint - to be implemented'}), 200
 
 @app.route('/')
 def home():
