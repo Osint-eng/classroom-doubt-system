@@ -27,15 +27,3 @@ export const isTeacher = (req, res, next) => {
   }
   next();
 };
-
-export const isOwner = (Model) => async (req, res, next) => {
-  const item = await Model.findById(req.params.id);
-  if (!item) {
-    return res.status(404).json({ message: 'Item not found' });
-  }
-  
-  if (item.author.toString() !== req.user.id && req.user.role !== 'teacher') {
-    return res.status(403).json({ message: 'Not authorized to modify this resource' });
-  }
-  next();
-};
